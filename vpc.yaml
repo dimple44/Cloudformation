@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: 2010-09-09
+ Description: Custom VPC Creation With Private and Public Subnet
+ Resources:
+  CustomVpc:
+      Type: AWS::EC2::VPC
+      Properties:
+          CidrBlock: 10.0.0.0/16
+          EnableDnsSupport: 'true'
+          EnableDnsHostnames: 'true'
+          Tags:
+           - Key: Name
+             Value: myvpc
+  myInternetGateway:
+      Type: AWS::EC2::InternetGateway
+      Properties:
+          Tags:
+          - Key: Name
+            Value: IGW
+  AttachGateway:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+         VpcId:
+            Ref: CustomVpc
+         InternetGatewayId:
+            Ref: myInternetGateway
+  PublicSubnet1:
+      Type: AWS::EC2::Subnet
+      Properties:
+         VpcId:
+            Ref: CustomVpc
+         CidrBlock: 10.0.1.0/24
+         AvailabilityZone: "us-east-1a"
+         Tags:
+         - Key: Name
+           Value: public-sub1
+  PublicSubnet2:
+      Type: AWS::EC2::Subnet
+      Properties:
+         VpcId:
+            Ref: CustomVpc
+         CidrBlock: 10.0.2.0/24
+         AvailabilityZone: "us-east-1b"
+         Tags:
+         - Key: Name
+           Value: public-sub2
+  myRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+         VpcId:  
+            Ref: CustomVpc
+         Tags:
+         - Key: Name
+           Value: public-RT
+  myRoute:
+      Type: AWS::EC2::Route
+      Properties:
+         RouteTableId:
+            Ref: myRouteTable
+         DestinationCidrBlock: 0.0.0.0/0
+         GatewayId:
+            Ref: myInternetGateway
+  mySubnet1RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+         SubnetId:
+            Ref: PublicSubnet1
+         RouteTableId:
+            Ref: myRouteTable
+  mySubnet2RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+         SubnetId:
+            Ref: PublicSubnet2
+         RouteTableId:
+            Ref: myRouteTable
