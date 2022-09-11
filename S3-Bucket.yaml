@@ -1,0 +1,10 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: create S3 bucket
+Resources:
+  MyS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties: 
+        AccessControl: "PublicRead"
+        BucketName: "cloudformation-bucket555"
+        VersioningConfiguration:
+          Status: Enabled
