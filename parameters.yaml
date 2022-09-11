@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: keypair 
+Parameters:
+  keyvalue:
+    Description: Select the key name 
+    Type: AWS::EC2::KeyPair::KeyName
+  MyAvailabilityZone:
+    Description: Select the AZ
+    Type: String  
+    Default: us-east-1a
+    AllowedValues: 
+      - us-east-1a
+      - us-east-2a
+      - us-east-3a
+  Env:
+    Description: Env
+    Type: String
+    AllowedValues:
+      - Dev
+      - Stage
+      - Prod
+    Default: Dev
+  Mappings: 
+  AMIs: 
+    us-east-1: 
+      Name: ami-052efd3df9dad4825
+    us-west-1: 
+      Name: ami-05fa00d4c63e32376
+    us-east-2: 
+      Name: ami-05fa00d4c63e32376
+  InstanceTypeParameter:
+    Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - m1.small
+      - m1.large
+Resources:
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: "ami-052efd3df9dad4825"
+      KeyName:
+         Ref: keyvalue
+      AvailabilityZone: 
+         Ref: MyAvailabilityZone
+      InstanceType:
+         Ref: InstanceTypeParameter
+      Tags:
+        - Key: "Name"
+          Value: "web"
