@@ -1,0 +1,250 @@
+ AWSTemplateFormatVersion: 2010-09-09
+ Description: Custom VPC Creation With  two Private and Public Subnet
+ Parameters:
+   keyvalue:
+    Description: Select the key name 
+    Type: AWS::EC2::KeyPair::KeyName
+   Env:
+    Description: Env
+    Type: String 
+    AllowedValues:
+      - dev 
+      - stage 
+      - prod 
+    Default: prod
+   instancesize:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+ Mappings:
+  AMIs: 
+    us-east-1:
+      Linux: ami-05fa00d4c63e32376
+      RedHat: ami-06640050dc3f556bb
+      Ubuntu: ami-052efd3df9dad4825
+ Resources:
+  CustomVpc:
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: 10.0.0.0/16
+            Tags:
+              - Key: Name
+                Value: !Join
+                  - ''
+                  - - !Ref 'AWS::StackName'
+                    - '-cloudVPC'
+
+  myInternetGateway:
+        Type: AWS::EC2::InternetGateway
+        Properties:
+            Tags:
+              - Key: "Name"
+                Value: "IGW"
+  AttachGateway:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+            VpcId:
+             Ref: CustomVpc
+            InternetGatewayId:
+             Ref: myInternetGateway
+  PublicSubnet:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId:
+             Ref: CustomVpc
+            CidrBlock: 10.0.1.0/24
+            AvailabilityZone: "us-east-1a"
+            Tags:
+              - Key: "Name"
+                Value: "public-sub"
+  PrivateSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId:
+             Ref: CustomVpc
+            CidrBlock: 10.0.2.0/24
+            AvailabilityZone: "us-east-1b"
+            Tags:
+              - Key: "Name"
+                Value: "private-sub1"
+  PrivateSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId:
+             Ref: CustomVpc
+            CidrBlock: 10.0.3.0/24
+            AvailabilityZone: "us-east-1c"
+            Tags:
+              - Key: "Name"
+                Value: "private-sub2"
+  myRouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId:  
+             Ref: CustomVpc
+            Tags:
+              - Key: "Name"
+                Value: "public-RT1"
+  myRouteTable1:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId:  
+             Ref: CustomVpc
+            Tags:
+              - Key: "Name"
+                Value: "private-RT2"
+  myRoute:
+        Type: AWS::EC2::Route
+        Properties:
+            RouteTableId:
+             Ref: myRouteTable
+            DestinationCidrBlock: 0.0.0.0/0
+            GatewayId:
+             Ref: myInternetGateway
+  mySubnet1RouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId:
+             Ref: PublicSubnet
+            RouteTableId:
+             Ref: myRouteTable
+  mySubnet2RouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId:
+             Ref: PrivateSubnet1
+            RouteTableId:
+             Ref: myRouteTable1  
+  mySubnet3RouteTableAssociation:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId:
+             Ref: PrivateSubnet2
+            RouteTableId:
+             Ref: myRouteTable1  
+  RDSSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: "my-SG"
+            VpcId: 
+             Ref: CustomVpc
+            GroupName: "RDS-SG"
+            SecurityGroupIngress:
+              - IpProtocol: tcp
+                FromPort: '3306'
+                ToPort: '3306'
+                CidrIp: 0.0.0.0/0
+            SecurityGroupEgress:
+              - IpProtocol: "-1"
+                FromPort: '0'
+                ToPort: '0'
+                CidrIp: 0.0.0.0/0
+            Tags:
+              - Key: "Name"
+                Value: "RDS-SG"
+  RDSDBSubnetGroup:
+        Type: "AWS::RDS::DBSubnetGroup"
+        Properties:
+            DBSubnetGroupDescription: "Subnet Group for mySQL database"
+            DBSubnetGroupName: "rds-subnets"
+            SubnetIds:
+            - Ref: PrivateSubnet1
+            - Ref: PrivateSubnet2
+            Tags:
+              - Key: "Name"
+                Value: "database-subnet-group"
+  RDSDBInstance:
+        Type: AWS::RDS::DBInstance
+        DependsOn: 
+          - RDSDBSubnetGroup
+          - RDSSecurityGroup
+        Properties:
+            DBInstanceIdentifier: database-77
+            AllocatedStorage: 100
+            DBInstanceClass: db.t4g.micro
+            Engine: "MySQL"
+            MasterUsername: "dimple"
+            MasterUserPassword: "12345678"
+            BackupRetentionPeriod: 7
+            MultiAZ: false
+            EngineVersion: 8.0.28
+            AutoMinorVersionUpgrade: true
+            Iops: 1000
+            PubliclyAccessible: false
+            StorageType: io1
+            Port: 3306
+            StorageEncrypted: true
+            CopyTagsToSnapshot: true
+            EnableIAMDatabaseAuthentication: false
+            EnablePerformanceInsights: true
+            PerformanceInsightsRetentionPeriod: 7
+            DeletionProtection: false
+            MaxAllocatedStorage: 1000
+            VPCSecurityGroups:
+            - Ref: RDSSecurityGroup
+            DBSubnetGroupName:
+             Ref: RDSDBSubnetGroup
+            Tags: 
+              - Key: Name
+                Value: database-8
+  InstanceSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "my-SG"
+        VpcId: 
+         Ref: CustomVpc
+        GroupName: "Instance-SG"
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: '80'
+            ToPort: '80'
+            CidrIp: 0.0.0.0/0
+          - IpProtocol: tcp
+            FromPort: '443'
+            ToPort: '443'
+            CidrIp: 0.0.0.0/0
+          - IpProtocol: tcp
+            FromPort: '22'
+            ToPort: '22'
+            CidrIp: 0.0.0.0/0
+        SecurityGroupEgress:
+          - IpProtocol: "-1"
+            FromPort: '0'
+            ToPort: '0'
+            CidrIp: 0.0.0.0/0
+  MyEC2Instance: 
+      Type: AWS::EC2::Instance
+      DependsOn: CustomVpc
+      Properties: 
+        ImageId: !FindInMap [ AMIs, us-east-1, Ubuntu ]
+        SubnetId: !Ref PublicSubnet
+        KeyName:
+         Ref: keyvalue
+        AvailabilityZone: "us-east-1a"
+        InstanceType: 
+           Ref: instancesize
+        SecurityGroupIds: 
+          - Ref: InstanceSecurityGroup
+        Tags:
+          - Key: "Name"
+            Value: "web"
+  MyEC2Instance1: 
+      Type: AWS::EC2::Instance
+      DependsOn: CustomVpc
+      Properties: 
+        ImageId: !FindInMap [ AMIs, us-east-1, Linux ]
+        SubnetId: !Ref PrivateSubnet1
+        KeyName:
+         Ref: keyvalue
+        AvailabilityZone: "us-east-1b"
+        InstanceType: 
+           Ref: instancesize
+        SecurityGroupIds: 
+          - Ref: InstanceSecurityGroup
+        Tags:
+          - Key: "Name"
+            Value: "app"
+  
